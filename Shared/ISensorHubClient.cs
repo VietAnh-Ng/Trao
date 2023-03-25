@@ -2,5 +2,5 @@
 
 public interface ISensorHubClient
 {
-    Task SensorDataReceived(long time, float value);
+    Task SensorDataReceived(uint time, float value);
 }

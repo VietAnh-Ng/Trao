@@ -7,9 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
-builder.Services.AddSignalR(options =>
+builder.Services.AddSignalR(option =>
 {
-    options.DisableImplicitFromServicesParameters = true;
+    option.DisableImplicitFromServicesParameters = true;
 });
 
 builder.Services.AddSingleton<SensorService>();

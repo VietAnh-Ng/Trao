@@ -1,15 +1,201 @@
 ﻿@page "/"
+@implements IAsyncDisposable
+
+@using ChartJs.Blazor.Common
+@using ChartJs.Blazor.Common.Axes
+@using ChartJs.Blazor.Common.Enums
+@using ChartJs.Blazor.LineChart
+@using ChartJs.Blazor.Util
+
+@inject SensorHubClient SensorHub
 
 <PageTitle>Thí nghiệm CẢM ỨNG ĐIỆN TỪ</PageTitle>
 
-<div class="w-100 h-100 overflow-hidden d-flex flex-column">
-    
-    <div class="d-flex justify-content-center">
+<div class="w-100 h-100 d-flex align-items-center justify-content-center">
+    <div class="w-100 h-100 overflow-hidden position-relative" style="max-width: 1350px;">
+        <div class="w-100 h-100 position-absolute overflow-hidden d-flex flex-column " style="top: 0; left: 0;">
+            <div class="flex-grow-1 w-100">
+                <Chart Config="LineChartConfig" @ref="CurrentChart" />
+            </div>
+            <div class="d-flex flex-row">
 
+                <img src="images/h1.jpg" alt="h1-img" />
+                <div class="flex-grow-1 overflow-hidden position-relative">
+                    <MudOverlay Visible="IsLoading" DarkBackground Absolute>
+                        <MudProgressCircular Color="Color.Info" Indeterminate="true" />
+                    </MudOverlay>
+                    <div class="w-100 h-100 position-absolute d-flex flex-column" style="top: 0; left: 0; overflow-x: hidden; overflow-y: scroll;">
+                        <div class="d-flex flex-row align-items-center m-3">
+                            <MudButtonGroup OverrideStyles="false" VerticalAlign>
+                                <MudButton Color="Color.Primary" Variant="Variant.Filled">Start</MudButton>
+                                <MudButton Color="Color.Secondary" Variant="Variant.Filled">Stop</MudButton>
+                            </MudButtonGroup>
+                            <div style="width: 80px; margin-left:20px;">
+                                <MudRadioGroup SelectedOption="RotationDirection" T="bool" SelectedOptionChanged="OnRotationDirectionChanged">
+                                    <MudRadio Option="true" Dense>Right</MudRadio>
+                                    <MudRadio Option="false" Dense>Left</MudRadio>
+                                </MudRadioGroup>
+                            </div>
+                        </div>
+                        <MudExpansionPanels MultiExpansion Class="m-3">
+                            <MudExpansionPanel Text="Plot control" IsExpanded>
+                                <div class="d-flex flex-row align-items-center">
+                                    Sample rate [Hz]:
+                                    <MudRadioGroup SelectedOption="SampleRate" T="int" SelectedOptionChanged="OnSampleRateChanged" Class="ms-2">
+                                        <MudRadio Option="25" Dense>25</MudRadio>
+                                        <MudRadio Option="50" Dense>50</MudRadio>
+                                        <MudRadio Option="100" Dense>100</MudRadio>
+                                        <MudRadio Option="200" Dense>200</MudRadio>
+                                    </MudRadioGroup>
+                                </div>
+                                <MudSwitch Checked="SignalsToPlot" T="bool" CheckedChanged="OnSignalsToPlotChanged" Color="Color.Primary" Label="Signals to plot" />
+                            </MudExpansionPanel>
+                            <MudExpansionPanel Text="Motor" IsExpanded>
+                                <MudSlider @bind-Value="MotorSpeed" @onmouseup="OnMotorSpeedMouseUp" Min="10" Max="500" ValueLabel>Speed @MotorSpeed</MudSlider>
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 @code {
     private readonly List<ChartSeries> DataSeries = new();
+    private Chart? CurrentChart;
+    private LineConfig LineChartConfig = new()
+        {
+            Options = new LineOptions
+            {
+                Responsive = true,
+                Title = new OptionsTitle
+                {
+                    Display = true,
+                    Text = "Dòng điện cảm ứng từ"
+                },
+                Tooltips = new Tooltips
+                {
+                    Mode = InteractionMode.Nearest,
+                    Intersect = true
+                },
+                Hover = new Hover
+                {
+                    Mode = InteractionMode.Nearest,
+                    Intersect = true
+                },
+                Scales = new Scales
+                {
+                    XAxes = new List<CartesianAxis>
+                    {
+                        new CategoryAxis
+                        {
+                            ScaleLabel = new ScaleLabel
+                            {
+                                LabelString = "Time",
+                            },
+                        }
+                    },
+                    YAxes = new List<CartesianAxis>
+                    {
+                        new ChartJs.Blazor.Common.Axes.LinearCartesianAxis
+                        {
+                            ScaleLabel = new ScaleLabel
+                            {
+                                LabelString = "Voltage",
+                            },
+                            Ticks = new ChartJs.Blazor.Common.Axes.Ticks.LinearCartesianTicks()
+                            {
+                                Min = -4,
+                                Max = 4,
+                            }
+                        }
+                    },
+                },
+                Animation = new ChartJs.Blazor.Common.Animation() { Duration = 0 },
+            },
+        };
 
+    private bool IsLoading { get; set; } = true;
+    private bool RotationDirection { get; set; }
+    private int SampleRate { get; set; }
+    private int MotorSpeed { get; set; }
+    private bool SignalsToPlot { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        for (int i = 0; i < 100; i++) LineChartConfig.Data.Labels.Add(string.Empty);
+        LineChartConfig.Data.Datasets.Add(new LineDataset<float>(Enumerable.Repeat<float>(float.NaN, 100))
+            {
+                Label = "Voltage",
+                BackgroundColor = ColorUtil.FromDrawingColor(System.Drawing.Color.FromArgb(255, 99, 132)),
+                BorderColor = ColorUtil.FromDrawingColor(System.Drawing.Color.FromArgb(255, 99, 132)),
+                Fill = FillingMode.Disabled,
+            });
+
+
+        SensorHub.OnSensorDataReceived += OnSensorDataReceived;
+        await SensorHub.Connect();
+
+        var controlOption = await SensorHub.GetControlOption();
+        RotationDirection = controlOption.RotationDirection;
+        SampleRate = controlOption.SampleRate;
+        MotorSpeed = controlOption.MotorSpeed;
+        SignalsToPlot = controlOption.SignalsToPlot;
+        IsLoading = false;
+
+        StateHasChanged();
+    }
+
+    private async Task OnRotationDirectionChanged(bool direction)
+    {
+        if (RotationDirection != direction)
+        {
+            RotationDirection = await SensorHub.SetRotationDirection(direction);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSampleRateChanged(int sampleRate)
+    {
+        if (SampleRate != sampleRate)
+        {
+            SampleRate = await SensorHub.SetSampleRate(sampleRate);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSignalsToPlotChanged(bool signalsToPlot)
+    {
+        if (SignalsToPlot != signalsToPlot)
+        {
+            SignalsToPlot = await SensorHub.SetSignalsToPlot(signalsToPlot);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnMotorSpeedMouseUp(MouseEventArgs e)
+    {
+        await SensorHub.SetMotorSpeed(MotorSpeed);
+    }
+
+    private void OnSensorDataReceived(uint time, float value)
+    {
+        LineChartConfig.Data.Labels.RemoveAt(0);
+        LineChartConfig.Data.Labels.Add(time.ToString());
+
+        var dataset = (IDataset<float>)LineChartConfig.Data.Datasets.ElementAt(0);
+        dataset.RemoveAt(0);
+        dataset.Add(value);
+
+        CurrentChart?.Update();
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await SensorHub.Disconnect();
+    }
 }
