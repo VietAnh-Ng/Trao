@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using MudBlazor;
 using TraoApp.Server.Services;
 using TraoApp.Shared;
 
 namespace TraoApp.Server.Hubs;
 
-public class SensorHub : Hub<ISensorHubClient>
+public class SensorHub : Hub
 {
     public ControlOption GetControlOption([FromServices] SensorService sensorService)
         => new()
@@ -40,4 +39,7 @@ public class SensorHub : Hub<ISensorHubClient>
         await sensorService.SetMotorSpeed(motorSpeed);
         return sensorService.ControlOption.MotorSpeed;
     }
+
+    public Task StartReadingSensor([FromServices] SensorService sensorService) => sensorService.StartReadingSensor();
+    public Task StopReadingSensor([FromServices] SensorService sensorService) => sensorService.StopReadingSensor();
 }

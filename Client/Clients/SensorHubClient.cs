@@ -6,15 +6,11 @@ namespace TraoApp.Client.Clients;
 
 public class SensorHubClient
 {
-    public event Action<uint, float>? OnSensorDataReceived;
-
-    private HubConnection Connection;
+    private readonly HubConnection Connection;
 
     public SensorHubClient(NavigationManager nav)
     {
         Connection = new HubConnectionBuilder().WithUrl(nav.ToAbsoluteUri("/hub/sensor")).Build();
-
-        Connection.On<uint, float>("SensorDataReceived", (time, value) => OnSensorDataReceived?.Invoke(time, value));
     }
 
     public async Task Connect()
@@ -38,4 +34,7 @@ public class SensorHubClient
     public async Task<int> SetSampleRate(int sampleRate) => await Connection.InvokeAsync<int>("SetSampleRate", sampleRate);
     public async Task<bool> SetSignalsToPlot(bool signalsToPlot) => await Connection.InvokeAsync<bool>("SetSignalsToPlot", signalsToPlot);
     public async Task<int> SetMotorSpeed(int motorSpeed) => await Connection.InvokeAsync<int>("SetMotorSpeed", motorSpeed);
+
+    public Task StartReadingSensor() => Connection.InvokeAsync("StartReadingSensor");
+    public Task StopReadingSensor() => Connection.InvokeAsync("StopReadingSensor");
 }
