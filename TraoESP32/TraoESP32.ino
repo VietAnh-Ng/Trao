@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <WebSocketsClient.h>
 #include <arduino-timer.h>
+#include <SoftwareSerial.h>
 
 #define USE_SERIAL Serial
 
@@ -26,10 +27,19 @@ union {
     uint8_t x7[3];
   };
 } plotPackage;
+
+bool sendPlotData(void *);
+
+SoftwareSerial TempSerial(14, 16);
 WiFiMulti WiFiMulti;
 WebSocketsClient webSocket;
 auto timer = timer_create_default();
 Timer<> default_timer;
+int analogValueArr[50];
+uint32_t Total = 0;
+int analogValue;
+float analogValueCv;
+auto sendPlotDataTask = timer.every(50000, sendPlotData);
 
 float rad = 0;
 bool plotEnable = true;
@@ -38,19 +48,38 @@ void cmddump(uint8_t *mem, uint32_t len) {
   if(mem[0] != 0xF0 || mem[len - 1] != 0xA0) return;
   if(mem[1] == 0x01)
   {
+    if(mem[2] == 0x00)
+    {
+      TempSerial.print("AT+STARTPR\r");
+    }
+    else
+    {
+      TempSerial.print("AT+STARTFW\r");
+    }
   }
   else if(mem[1] == 0x02)
   {
+    
   }
   else if(mem[1] == 0x03)
   {
+    if(mem[2] == 0x00)
+    {
+      //timer.cancel(sendPlotDataTask);
+    }
+    else
+    {
+      //sendPlotDataTask = timer.every(10, sendPlotData);
+    }
   }
   else if(mem[1] == 0x04)
   {
     if(len == 7)
     {
       uint32_t speed = mem[2] + (mem[3] << 8) + (mem[4] << 16) + (mem[5] << 24);
-      // TempSerial.print("AT+SETSPEED=%d\r", speed);
+      TempSerial.print("AT+SETSPEED=");
+      TempSerial.print(speed);
+      TempSerial.print("\r");
     }
   }
   else if(mem[1] == 0x05)
@@ -67,8 +96,20 @@ bool sendPlotData(void *)
 {
   if(webSocket.isConnected())
   {
-    rad += 0.01;
-    plotPackage.value = sin(rad) * 300;
+    Total = 0;
+    analogValue = analogRead(35);
+    for (int i = 49; i > 0; i--)
+    {
+        analogValueArr[i] = analogValueArr[i - 1];
+        Total += analogValueArr[i];
+    }
+    analogValueArr[0] = analogValue;
+    Total += analogValueArr[0];
+    
+    analogValueCv = ((float)Total / 50) * 3.3 / 4095 - 1.545;
+    // rad += 0.01;
+    // plotPackage.value = sin(rad) * 300;
+    plotPackage.value = analogValueCv * 1000;
     webSocket.sendBIN(plotPackage.buffer, sizeof(plotPackage.buffer));
     return true;    
   }
@@ -78,7 +119,6 @@ bool sendPlotData(void *)
   }
 }
 
-auto sendPlotDataTask = timer.every(50000, sendPlotData);
 uint8_t startMesage[] = {0xF0, 0x01, 0xAA};
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
@@ -107,14 +147,18 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 }
 
 void setup() {
-  timer.cancel(sendPlotDataTask); 
+  timer.cancel(sendPlotDataTask);
+  
 	plotPackage.cmd = 0xF0;
   plotPackage.crc = 0xAA;
+
 	USE_SERIAL.begin(115200);
+  TempSerial.begin(9600);
+  TempSerial.println("START SOFTSERIAL");
 
 	//USE_SERIAL.setDebugOutput(true);
 
-	WiFiMulti.addAP("F11_A10", "88888888");
+	WiFiMulti.addAP("ANHNV-Private", "88888888");
 
 	//WiFi.disconnect();
 	while(WiFiMulti.run() != WL_CONNECTED) {    
@@ -126,7 +170,7 @@ void setup() {
   IPAddress myIP = WiFi.localIP();
   USE_SERIAL.println(myIP);
   
-	webSocket.begin("192.168.68.164", 5144, "/ws/sensor");
+	webSocket.begin("192.168.137.1", 5144, "/ws/sensor");
 	webSocket.onEvent(webSocketEvent);
 	//webSocket.setAuthorization("user", "Password");
 	webSocket.setReconnectInterval(5000);

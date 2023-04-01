@@ -1,0 +1,331 @@
+﻿@page "/thi-nghiem-3"
+@implements IAsyncDisposable
+
+@using Blazor.Extensions
+@using Blazor.Extensions.Canvas.Canvas2D;
+@using TraoApp.Shared
+@using System.Net.WebSockets
+
+@inject SensorHubClient SensorHub
+@inject NavigationManager Nav
+
+<PageTitle>Thí nghiệm CẢM ỨNG ĐIỆN TỪ</PageTitle>
+
+<div class="w-100 h-100 d-flex align-items-center justify-content-center">
+    <div class="w-100 h-100 overflow-hidden position-relative" style="max-width: 1350px;">
+        <div class="w-100 h-100 position-absolute overflow-hidden d-flex flex-column-reverse" style="top: 0; left: 0;">
+            <div class="d-flex flex-row">
+                <img src="images/h1.jpg" alt="h1-img" />
+                <div class="flex-grow-1 overflow-hidden position-relative">
+                    <MudOverlay Visible="IsLoading" DarkBackground Absolute>
+                        <MudProgressCircular Color="Color.Info" Indeterminate="true" />
+                    </MudOverlay>
+                    <div class="w-100 h-100 position-absolute d-flex" style="top: 0; left: 0; overflow-x: hidden; overflow-y: scroll;">
+                        <div class="w-100 d-flex flex-column p-3">
+                            <p>
+                                Mô tả thí nghiệm
+                                đâsd 
+                                Mô tả thí nghiệm <br/>
+                                đâsd 
+                                Mô tả thí nghiệm
+                                đâsd 
+                            </p>
+                            <hr/>
+                            <b>Điều khiển</b>
+                            <div class="d-flex flex-row justify-content-between">
+                                <div class="d-flex flex-row align-items-center">
+                                    <MudButtonGroup OverrideStyles="false">
+                                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionFW">Run Left</MudButton>
+                                        <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionPR">Run Right</MudButton>
+                                    </MudButtonGroup>
+                                    <div class="d-none" style="width: 80px; margin-left:20px;">
+                                        <MudRadioGroup SelectedOption="RotationDirection" T="bool" SelectedOptionChanged="OnRotationDirectionChanged">
+                                            <MudRadio Option="true" Dense>Right</MudRadio>
+                                            <MudRadio Option="false" Dense>Left</MudRadio>
+                                        </MudRadioGroup>
+                                    </div>
+                                </div>
+                                <MudSwitch @bind-Checked="SignalsToPlot" Color="Color.Primary" Label="Signals to plot" />
+                                @*<div class="d-none flex-column">
+                                <div class="d-flex flex-row align-items-center">
+                                Sample rate [Hz]:
+                                <MudRadioGroup SelectedOption="SampleRate" T="int" SelectedOptionChanged="OnSampleRateChanged" Class="ms-3">
+                                <MudRadio Option="25" Dense>25</MudRadio>
+                                <MudRadio Option="50" Dense>50</MudRadio>
+                                <MudRadio Option="100" Dense>100</MudRadio>
+                                <MudRadio Option="200" Dense>200</MudRadio>
+                                </MudRadioGroup>
+                                </div>
+                                <MudSwitch Checked="SignalsToPlot" T="bool" CheckedChanged="OnSignalsToPlotChanged" Color="Color.Primary" Label="Signals to plot" />
+                                </div>*@
+                            </div>
+                            <MudSlider @bind-Value="MotorSpeed" @onmouseup="OnMotorSpeedMouseUp" Min="1000" Max="2000" Step="100" ValueLabel>Motor speed @MotorSpeed</MudSlider>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-grow-1 w-100" @ref="ChartContainerRef">
+                <div class="w-100 h-100 overflow-hidden position-relative">
+                    <div class="w-100 h-100 position-absolute" style="top: 0; left: 0;">
+                        <BECanvas Width="@ChartWidth" Height="@ChartHeight" @ref="BackgroundChartRef" />
+                    </div>
+                    <div class="w-100 h-100 position-absolute" style="top: 0; left: 0;">
+                        <BECanvas Width="@ChartWidth" Height="@ChartHeight" @ref="PlotRef" />
+                    </div>
+                    <div class="w-100 h-100 position-absolute" style="top: 0; left: 0;" @onclick="OnMouseMoveContainer">
+                        <BECanvas Width="@ChartWidth" Height="@ChartHeight" @ref="MouseRef" />
+                    </div>
+                </div>
+            </div>
+
+            <h4>
+                Thí nghiệm 3
+            </h4>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ElementReference ChartContainerRef;
+
+    private Canvas2DContext? BackgroundChartContext;
+    private Canvas2DContext? PlotContext;
+    private Canvas2DContext? MouseContext;
+
+    private BECanvasComponent? BackgroundChartRef;
+    private BECanvasComponent? PlotRef;
+    private BECanvasComponent? MouseRef;
+
+    private CancellationTokenSource disposalTokenSource = new CancellationTokenSource();
+    private ClientWebSocket webSocket = new ClientWebSocket();
+
+    private bool IsLoading { get; set; } = true;
+    private bool RotationDirection { get; set; }
+    private int SampleRate { get; set; }
+    private int MotorSpeed { get; set; }
+    private bool SignalsToPlot { get; set; } = true;
+    private readonly float[] PlotDatas = Enumerable.Repeat(float.NaN, 1000).ToArray();
+    private int PlotDataIndex = 0;
+    private long ChartWidth { get; set; } = 0;
+    private long ChartHeight { get; set; } = 0;
+    private int ChartMarginLeft = 80;
+    private int ChartMarginRight = 10;
+    private int ChartMarginTop = 10;
+    private int ChartMarginBottom = 10;
+    private int ChartGridSize = 100;
+    private double ValueResolutiion = 4;
+    private double SampleWidth = 1.0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        await SensorHub.Connect();
+
+        var controlOption = await SensorHub.GetControlOption();
+        RotationDirection = controlOption.RotationDirection;
+        SampleRate = controlOption.SampleRate;
+        MotorSpeed = controlOption.MotorSpeed;
+        SignalsToPlot = controlOption.SignalsToPlot;
+        IsLoading = false;
+
+        var rect = await ChartContainerRef.MudGetBoundingClientRectAsync();
+
+        ChartWidth = (long)rect.Width;
+        ChartHeight = (long)rect.Height;
+        SampleWidth = ((double)ChartWidth - ChartMarginRight - ChartMarginLeft) / (PlotDatas.Length);
+        StateHasChanged();
+
+        await DrawChartBackground();
+
+        var uriBuilder = new UriBuilder(Nav.ToAbsoluteUri("/ws/sensor"))
+            {
+                Scheme = Uri.UriSchemeWs,
+            };
+        await webSocket.ConnectAsync(uriBuilder.Uri, disposalTokenSource.Token);
+        //await webSocket.ConnectAsync(new Uri("ws://192.168.4.1:81"), disposalTokenSource.Token);
+        await webSocket.SendAsync(new byte[] { 0xF0, 0x02, 0xAA, }, WebSocketMessageType.Binary, true, disposalTokenSource.Token);
+        _ = ReceivePlotData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && BackgroundChartRef is not null && PlotRef is not null)
+        {
+            BackgroundChartContext = await BackgroundChartRef.CreateCanvas2DAsync();
+            PlotContext = await PlotRef.CreateCanvas2DAsync();
+            MouseContext = await MouseRef.CreateCanvas2DAsync();
+        }
+    }
+
+    private async Task ReceivePlotData()
+    {
+        if (PlotContext is null) return;
+
+        var buffer = new byte[1024];
+        Task drawTask = Task.CompletedTask;
+        List<float> datas = new();
+        await PlotContext.SetStrokeStyleAsync("#75FF33");
+        await PlotContext.SetLineWidthAsync(1);
+        while (!disposalTokenSource.IsCancellationRequested)
+        {
+            var received = await webSocket.ReceiveAsync(buffer, disposalTokenSource.Token);
+
+            if (SignalsToPlot && received.MessageType == WebSocketMessageType.Binary && received.Count == 6 && buffer[0] == 0xF0 && buffer[received.Count - 1] == 0xAA)
+            //if (received.MessageType == WebSocketMessageType.Binary && buffer[0] == 0xFF)
+            {
+                PlotDatas[PlotDataIndex] = BitConverter.ToSingle(buffer, 1);
+                if (PlotDataIndex == 0)
+                {
+                    PlotDataIndex = 1;
+                    continue;
+                }
+
+                await DrawPlot(PlotDataIndex, ChartHeight / 2 - PlotDatas[PlotDataIndex - 1] * ValueResolutiion, ChartHeight / 2 - PlotDatas[PlotDataIndex] * ValueResolutiion);
+
+                PlotDataIndex++;
+                if (PlotDataIndex >= PlotDatas.Length) PlotDataIndex = 0;
+            }
+        }
+    }
+    private async Task DrawPlot(int index, double y1, double y2)
+    {
+        if (PlotContext is null) return;
+
+        await PlotContext.BeginPathAsync();
+        await PlotContext.MoveToAsync(ChartMarginLeft + (index - 1) * SampleWidth, y1);
+        await PlotContext.LineToAsync(ChartMarginLeft + index * SampleWidth, y2);
+        await PlotContext.StrokeAsync();
+        if (index < PlotDatas.Length - 1)
+        {
+            await PlotContext.ClearRectAsync(ChartMarginLeft + index * SampleWidth, 0, SampleWidth, ChartHeight);
+        }
+        else
+        {
+            await PlotContext.ClearRectAsync(ChartMarginLeft, 0, SampleWidth, ChartHeight);
+        }
+    }
+
+    private async Task DrawChartBackground()
+    {
+        if (BackgroundChartContext is null) return;
+
+        await BackgroundChartContext.ClearRectAsync(0, 0, ChartWidth, ChartHeight);
+        await BackgroundChartContext.SetFillStyleAsync("black");
+        await BackgroundChartContext.FillRectAsync(0, 0, ChartWidth, ChartHeight);
+
+
+        await BackgroundChartContext.SetStrokeStyleAsync("#333333");
+        await BackgroundChartContext.SetLineWidthAsync(1);
+        await BackgroundChartContext.BeginPathAsync();
+
+        int colNum = (int)((ChartWidth - ChartMarginLeft - ChartMarginRight) / ChartGridSize);
+        for (int i = 0; i < colNum; i++)
+        {
+            await BackgroundChartContext.MoveToAsync(ChartMarginLeft + (i + 1) * ChartGridSize, ChartMarginTop);
+            await BackgroundChartContext.LineToAsync(ChartMarginLeft + (i + 1) * ChartGridSize, ChartHeight - ChartMarginBottom);
+        }
+
+        int rowNum = (int)((ChartHeight - ChartMarginTop - ChartMarginBottom) / (2 + ChartGridSize));
+        for (int i = 0; i < rowNum; i++)
+        {
+            await BackgroundChartContext.MoveToAsync(ChartMarginLeft, ChartHeight / 2 + (i + 1) * ChartGridSize);
+            await BackgroundChartContext.LineToAsync(ChartWidth - ChartMarginRight, ChartHeight / 2 + (i + 1) * ChartGridSize);
+            await BackgroundChartContext.MoveToAsync(ChartMarginLeft, ChartHeight / 2 - (i + 1) * ChartGridSize);
+            await BackgroundChartContext.LineToAsync(ChartWidth - ChartMarginRight, ChartHeight / 2 - (i + 1) * ChartGridSize);
+        }
+
+        await BackgroundChartContext.StrokeAsync();
+
+        await BackgroundChartContext.SetStrokeStyleAsync("#888888");
+        await BackgroundChartContext.SetLineWidthAsync(3);
+        await BackgroundChartContext.BeginPathAsync();
+
+        await BackgroundChartContext.MoveToAsync(ChartMarginLeft, ChartMarginTop);
+        await BackgroundChartContext.LineToAsync(ChartWidth - ChartMarginRight, ChartMarginTop);
+        await BackgroundChartContext.LineToAsync(ChartWidth - ChartMarginRight, ChartHeight - ChartMarginBottom);
+        await BackgroundChartContext.LineToAsync(ChartMarginLeft, ChartHeight - ChartMarginBottom);
+        await BackgroundChartContext.LineToAsync(ChartMarginLeft, ChartMarginTop - 1);
+
+        await BackgroundChartContext.SetLineWidthAsync(1);
+        await BackgroundChartContext.MoveToAsync(ChartMarginLeft, ChartHeight / 2);
+        await BackgroundChartContext.LineToAsync(ChartWidth - ChartMarginRight, ChartHeight / 2);
+
+        await BackgroundChartContext.StrokeAsync();
+
+        await BackgroundChartContext.SetFillStyleAsync("#BAB10B");
+        await BackgroundChartContext.SetFontAsync("18px sans-serif ");
+        await BackgroundChartContext.SetTextBaselineAsync(TextBaseline.Middle);
+        await BackgroundChartContext.SetTextAlignAsync(TextAlign.Right);
+
+        await BackgroundChartContext.FillTextAsync("0 mV", ChartMarginLeft - 5, ChartHeight / 2);
+        var valueSpace = ChartGridSize / ValueResolutiion;
+        for (int i = 0; i < rowNum; i++)
+        {
+            var value = (int)((i + 1) * valueSpace);
+            await BackgroundChartContext.FillTextAsync($"{value} mV", ChartMarginLeft - 5, ChartHeight / 2 - (i + 1) * ChartGridSize);
+            await BackgroundChartContext.FillTextAsync($"{-value} mV", ChartMarginLeft - 5, ChartHeight / 2 + (i + 1) * ChartGridSize);
+        }
+    }
+
+    private async Task OnMouseMoveContainer(MouseEventArgs e)
+    {
+        if (MouseContext is null) return;
+
+        await MouseContext.ClearRectAsync(0, 0, ChartWidth, ChartHeight);
+
+        await MouseContext.SetStrokeStyleAsync("#BAB10B");
+        await MouseContext.SetLineWidthAsync(1);
+        await MouseContext.BeginPathAsync();
+        await MouseContext.MoveToAsync(ChartMarginLeft, e.OffsetY);
+        await MouseContext.LineToAsync(ChartWidth - ChartMarginRight, e.OffsetY);
+        await MouseContext.StrokeAsync();
+
+        await MouseContext.SetFontAsync("14px sans-serif ");
+        await MouseContext.SetFillStyleAsync("#75FF33");
+        await MouseContext.SetTextBaselineAsync(TextBaseline.Bottom);
+        await MouseContext.SetTextAlignAsync(TextAlign.Left);
+        await MouseContext.FillTextAsync($"{((ChartHeight / 2 - e.OffsetY) / ValueResolutiion):0.00} mV", ChartMarginLeft, e.OffsetY);
+    }
+
+    private async Task OnRotationDirectionChanged(bool direction)
+    {
+        if (RotationDirection != direction)
+        {
+            RotationDirection = await SensorHub.SetRotationDirection(direction);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSampleRateChanged(int sampleRate)
+    {
+        if (SampleRate != sampleRate)
+        {
+            SampleRate = await SensorHub.SetSampleRate(sampleRate);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSignalsToPlotChanged(bool signalsToPlot)
+    {
+        if (SignalsToPlot != signalsToPlot)
+        {
+            SignalsToPlot = await SensorHub.SetSignalsToPlot(signalsToPlot);
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnMotorSpeedMouseUp(MouseEventArgs e)
+    {
+        await SensorHub.SetMotorSpeed(MotorSpeed);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await SensorHub.Disconnect();
+
+        disposalTokenSource.Cancel();
+        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+    }
+}

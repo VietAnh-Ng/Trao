@@ -87,7 +87,10 @@ public class SensorService : BackgroundService
         Queue<WebSocket> clients = new(DeviceClientSockets);
         while (clients.TryDequeue(out WebSocket? webSocket) && webSocket is not null)
         {
-            await webSocket.SendAsync(buffer, WebSocketMessageType.Binary, true, CancellationToken.None);
+            if (webSocket.State == WebSocketState.Open)
+            {
+                await webSocket.SendAsync(buffer, WebSocketMessageType.Binary, true, CancellationToken.None);
+            }
         }
     }
 
