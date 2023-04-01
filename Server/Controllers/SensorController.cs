@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using TraoApp.Server.Hubs;
 using TraoApp.Server.Services;
 
 namespace TraoApp.Server.Controllers;

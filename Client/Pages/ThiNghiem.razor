@@ -1,4 +1,5 @@
-﻿@page "/thi-nghiem-2"
+﻿@page "/thi-nghiem"
+@page "/thi-nghiem/{experiment:int}"
 @implements IAsyncDisposable
 
 @using Blazor.Extensions
@@ -15,7 +16,7 @@
     <div class="w-100 h-100 overflow-hidden position-relative" style="max-width: 1350px;">
         <div class="w-100 h-100 position-absolute overflow-hidden d-flex flex-column-reverse" style="top: 0; left: 0;">
             <div class="d-flex flex-row">
-                <img src="images/h1.jpg" alt="h1-img" />
+                <img src="@ExperimentImageSrc" alt="ExperimentImage" />
                 <div class="flex-grow-1 overflow-hidden position-relative">
                     <MudOverlay Visible="IsLoading" DarkBackground Absolute>
                         <MudProgressCircular Color="Color.Info" Indeterminate="true" />
@@ -23,43 +24,18 @@
                     <div class="w-100 h-100 position-absolute d-flex" style="top: 0; left: 0; overflow-x: hidden; overflow-y: scroll;">
                         <div class="w-100 d-flex flex-column p-3">
                             <p>
-                                Mô tả thí nghiệm
-                                đâsd 
-                                Mô tả thí nghiệm <br/>
-                                đâsd 
-                                Mô tả thí nghiệm
-                                đâsd 
+                                @ExperimentDescription
                             </p>
-                            <hr/>
+                            <hr />
                             <b>Điều khiển</b>
-                            <div class="d-flex flex-row justify-content-between">
-                                <div class="d-flex flex-row align-items-center">
-                                    <MudButtonGroup OverrideStyles="false">
-                                        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionFW">Run Left</MudButton>
-                                        <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionPR">Run Right</MudButton>
-                                    </MudButtonGroup>
-                                    <div class="d-none" style="width: 80px; margin-left:20px;">
-                                        <MudRadioGroup SelectedOption="RotationDirection" T="bool" SelectedOptionChanged="OnRotationDirectionChanged">
-                                            <MudRadio Option="true" Dense>Right</MudRadio>
-                                            <MudRadio Option="false" Dense>Left</MudRadio>
-                                        </MudRadioGroup>
-                                    </div>
-                                </div>
+                            <div class="d-flex flex-row justify-content-between align-items-center">
+                                <MudButtonGroup OverrideStyles="false">
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionFW">Run Left</MudButton>
+                                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionPR">Run Right</MudButton>
+                                </MudButtonGroup>
                                 <MudSwitch @bind-Checked="SignalsToPlot" Color="Color.Primary" Label="Signals to plot" />
-                                @*<div class="d-none flex-column">
-                                <div class="d-flex flex-row align-items-center">
-                                Sample rate [Hz]:
-                                <MudRadioGroup SelectedOption="SampleRate" T="int" SelectedOptionChanged="OnSampleRateChanged" Class="ms-3">
-                                <MudRadio Option="25" Dense>25</MudRadio>
-                                <MudRadio Option="50" Dense>50</MudRadio>
-                                <MudRadio Option="100" Dense>100</MudRadio>
-                                <MudRadio Option="200" Dense>200</MudRadio>
-                                </MudRadioGroup>
-                                </div>
-                                <MudSwitch Checked="SignalsToPlot" T="bool" CheckedChanged="OnSignalsToPlotChanged" Color="Color.Primary" Label="Signals to plot" />
-                                </div>*@
                             </div>
-                            <MudSlider @bind-Value="MotorSpeed" @onmouseup="OnMotorSpeedMouseUp" Min="1000" Max="2000" Step="100" ValueLabel>Motor speed @MotorSpeed</MudSlider>
+                            <MudSlider Value="@MotorSpeed" T="int" ValueChanged="OnMotorSpeedChanged" Min="1000" Max="2000" Step="100" ValueLabel>Motor speed @MotorSpeed</MudSlider>
                         </div>
                     </div>
                 </div>
@@ -79,14 +55,34 @@
                 </div>
             </div>
 
-            <h4>
-                Thí nghiệm 2
-            </h4>
+            <div class="d-flex flex-row align-items-center pt-2 pb-2">
+                <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Primary" Size="Size.Large" Href="/" />
+                <h4 class="mb-0 ms-2">
+                    @ExperimentName
+                </h4>
+                <div class="flex-grow-1">
+                </div>
+                @if (Experiment != 1)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(_ => SetExperiment(1))">Thí nghiệm 1</MudButton>
+                }
+                @if (Experiment != 2)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(_ => SetExperiment(2))">Thí nghiệm 2</MudButton>
+                }
+                @if (Experiment != 3)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(_ => SetExperiment(3))">Thí nghiệm 3</MudButton>
+                }
+            </div>
         </div>
     </div>
 </div>
 
 @code {
+    [Parameter]
+    public int Experiment { get; set; }
+
     private ElementReference ChartContainerRef;
 
     private Canvas2DContext? BackgroundChartContext;
@@ -102,7 +98,6 @@
 
     private bool IsLoading { get; set; } = true;
     private bool RotationDirection { get; set; }
-    private int SampleRate { get; set; }
     private int MotorSpeed { get; set; }
     private bool SignalsToPlot { get; set; } = true;
     private readonly float[] PlotDatas = Enumerable.Repeat(float.NaN, 1000).ToArray();
@@ -117,6 +112,30 @@
     private double ValueResolutiion = 4;
     private double SampleWidth = 1.0;
 
+    private string ExperimentName => Experiment switch
+    {
+        1 => "Thí nghiệm 1",
+        2 => "Thí nghiệm 2",
+        3 => "Thí nghiệm 3",
+        _ => "Thí nghiệm 1"
+    };
+
+    private string ExperimentDescription => Experiment switch
+    {
+        1 => "Mô tả thí nghiệm 1",
+        2 => "Mô tả thí nghiệm 2",
+        3 => "Mô tả thí nghiệm 3",
+        _ => "Mô tả thí nghiệm 1"
+    };
+
+    private string ExperimentImageSrc => Experiment switch
+    {
+        1 => "images/h1.jpg",
+        2 => "images/h1.jpg",
+        3 => "images/h1.jpg",
+        _ => "images/h1.jpg"
+    };
+
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
@@ -125,9 +144,7 @@
 
         var controlOption = await SensorHub.GetControlOption();
         RotationDirection = controlOption.RotationDirection;
-        SampleRate = controlOption.SampleRate;
         MotorSpeed = controlOption.MotorSpeed;
-        SignalsToPlot = controlOption.SignalsToPlot;
         IsLoading = false;
 
         var rect = await ChartContainerRef.MudGetBoundingClientRectAsync();
@@ -144,7 +161,6 @@
                 Scheme = Uri.UriSchemeWs,
             };
         await webSocket.ConnectAsync(uriBuilder.Uri, disposalTokenSource.Token);
-        //await webSocket.ConnectAsync(new Uri("ws://192.168.4.1:81"), disposalTokenSource.Token);
         await webSocket.SendAsync(new byte[] { 0xF0, 0x02, 0xAA, }, WebSocketMessageType.Binary, true, disposalTokenSource.Token);
         _ = ReceivePlotData();
     }
@@ -173,7 +189,6 @@
             var received = await webSocket.ReceiveAsync(buffer, disposalTokenSource.Token);
 
             if (SignalsToPlot && received.MessageType == WebSocketMessageType.Binary && received.Count == 6 && buffer[0] == 0xF0 && buffer[received.Count - 1] == 0xAA)
-            //if (received.MessageType == WebSocketMessageType.Binary && buffer[0] == 0xFF)
             {
                 PlotDatas[PlotDataIndex] = BitConverter.ToSingle(buffer, 1);
                 if (PlotDataIndex == 0)
@@ -289,36 +304,15 @@
         await MouseContext.FillTextAsync($"{((ChartHeight / 2 - e.OffsetY) / ValueResolutiion):0.00} mV", ChartMarginLeft, e.OffsetY);
     }
 
-    private async Task OnRotationDirectionChanged(bool direction)
-    {
-        if (RotationDirection != direction)
-        {
-            RotationDirection = await SensorHub.SetRotationDirection(direction);
-            StateHasChanged();
-        }
-    }
-
-    private async Task OnSampleRateChanged(int sampleRate)
-    {
-        if (SampleRate != sampleRate)
-        {
-            SampleRate = await SensorHub.SetSampleRate(sampleRate);
-            StateHasChanged();
-        }
-    }
-
-    private async Task OnSignalsToPlotChanged(bool signalsToPlot)
-    {
-        if (SignalsToPlot != signalsToPlot)
-        {
-            SignalsToPlot = await SensorHub.SetSignalsToPlot(signalsToPlot);
-            StateHasChanged();
-        }
-    }
-
-    private async Task OnMotorSpeedMouseUp(MouseEventArgs e)
+    private async Task OnMotorSpeedChanged(int speed)
     {
         await SensorHub.SetMotorSpeed(MotorSpeed);
+    }
+
+    private void SetExperiment(int i)
+    {
+        Experiment = i;
+        StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()

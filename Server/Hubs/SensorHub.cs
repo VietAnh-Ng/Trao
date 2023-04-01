@@ -11,9 +11,7 @@ public class SensorHub : Hub
         => new()
         {
             RotationDirection = sensorService.ControlOption.RotationDirection,
-            SampleRate = sensorService.ControlOption.SampleRate,
             MotorSpeed = sensorService.ControlOption.MotorSpeed,
-            SignalsToPlot = sensorService.ControlOption.SignalsToPlot,
         };
 
     public async Task<bool> SetRotationDirection(bool direction, [FromServices] SensorService sensorService)
@@ -22,24 +20,10 @@ public class SensorHub : Hub
         return sensorService.ControlOption.RotationDirection;
     }
 
-    public async Task<int> SetSampleRate(int sampleRate, [FromServices] SensorService sensorService)
-    {
-        await sensorService.SetSampleRate(sampleRate);
-        return sensorService.ControlOption.SampleRate;
-    }
-
-    public async Task<bool> SetSignalsToPlot(bool signalsToPlot, [FromServices] SensorService sensorService)
-    {
-        await sensorService.SetSignalsToPlot(signalsToPlot);
-        return sensorService.ControlOption.SignalsToPlot;
-    }
-
     public async Task<int> SetMotorSpeed(int motorSpeed, [FromServices] SensorService sensorService)
     {
         await sensorService.SetMotorSpeed(motorSpeed);
         return sensorService.ControlOption.MotorSpeed;
     }
 
-    public Task StartReadingSensor([FromServices] SensorService sensorService) => sensorService.StartReadingSensor();
-    public Task StopReadingSensor([FromServices] SensorService sensorService) => sensorService.StopReadingSensor();
 }

@@ -31,13 +31,8 @@ public class SensorHubClient
 
     public async Task<ControlOption> GetControlOption() => await Connection.InvokeAsync<ControlOption>("GetControlOption");
     public async Task<bool> SetRotationDirection(bool direction) => await Connection.InvokeAsync<bool>("SetRotationDirection", direction);
-    public async Task<int> SetSampleRate(int sampleRate) => await Connection.InvokeAsync<int>("SetSampleRate", sampleRate);
-    public async Task<bool> SetSignalsToPlot(bool signalsToPlot) => await Connection.InvokeAsync<bool>("SetSignalsToPlot", signalsToPlot);
     public async Task<int> SetMotorSpeed(int motorSpeed) => await Connection.InvokeAsync<int>("SetMotorSpeed", motorSpeed);
 
     public async Task<bool> SetRotationDirectionPR() => await Connection.InvokeAsync<bool>("SetRotationDirection", true);
     public async Task<bool> SetRotationDirectionFW() => await Connection.InvokeAsync<bool>("SetRotationDirection", false);
-
-    public Task StartReadingSensor() => Connection.InvokeAsync("StartReadingSensor");
-    public Task StopReadingSensor() => Connection.InvokeAsync("StopReadingSensor");
 }
