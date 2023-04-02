@@ -10,5 +10,5 @@ RUN dotnet publish -c Release -o /publish
 FROM mcr.microsoft.com/dotnet/aspnet:7.0 as runtime
 WORKDIR /publish
 COPY --from=build-env /publish .
-EXPOSE 5000
+EXPOSE 80
 ENTRYPOINT ["dotnet", "TraoApp.Server.dll"]
