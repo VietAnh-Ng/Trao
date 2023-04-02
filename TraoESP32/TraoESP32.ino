@@ -29,6 +29,8 @@ union {
 } plotPackage;
 
 bool sendPlotData(void *);
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length);
+void cmddump(uint8_t *mem, uint32_t len);
 
 SoftwareSerial TempSerial(14, 16);
 WiFiMulti WiFiMulti;
@@ -40,9 +42,7 @@ uint32_t Total = 0;
 int analogValue;
 float analogValueCv;
 auto sendPlotDataTask = timer.every(50000, sendPlotData);
-
-float rad = 0;
-bool plotEnable = true;
+uint8_t startMesage[] = {0xF0, 0x01, 0xAA};
 
 void cmddump(uint8_t *mem, uint32_t len) {
   if(mem[0] != 0xF0 || mem[len - 1] != 0xA0) return;
@@ -59,21 +59,6 @@ void cmddump(uint8_t *mem, uint32_t len) {
   }
   else if(mem[1] == 0x02)
   {
-    
-  }
-  else if(mem[1] == 0x03)
-  {
-    if(mem[2] == 0x00)
-    {
-      //timer.cancel(sendPlotDataTask);
-    }
-    else
-    {
-      //sendPlotDataTask = timer.every(10, sendPlotData);
-    }
-  }
-  else if(mem[1] == 0x04)
-  {
     if(len == 7)
     {
       uint32_t speed = mem[2] + (mem[3] << 8) + (mem[4] << 16) + (mem[5] << 24);
@@ -81,14 +66,6 @@ void cmddump(uint8_t *mem, uint32_t len) {
       TempSerial.print(speed);
       TempSerial.print("\r");
     }
-  }
-  else if(mem[1] == 0x05)
-  {
-    plotEnable = true;
-  }
-  else if(mem[1] == 0x06)
-  {
-    plotEnable = false;
   }
 }
 
@@ -118,8 +95,6 @@ bool sendPlotData(void *)
     return false;
   }
 }
-
-uint8_t startMesage[] = {0xF0, 0x01, 0xAA};
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
@@ -161,10 +136,16 @@ void setup() {
 	WiFiMulti.addAP("ANHNV-Private", "88888888");
 
 	//WiFi.disconnect();
-	while(WiFiMulti.run() != WL_CONNECTED) {    
+  bool ledMode = true;
+  pinMode(LED_BUILTIN, OUTPUT);
+	while(WiFiMulti.run() != WL_CONNECTED) {
+    digitalWrite(LED_BUILTIN, ledMode);
+    ledMode != ledMode;
 	  USE_SERIAL.print(".");
 		delay(100);
 	}
+ 
+  digitalWrite(LED_BUILTIN, LOW);
  
   USE_SERIAL.print("IP address:\t");
   IPAddress myIP = WiFi.localIP();

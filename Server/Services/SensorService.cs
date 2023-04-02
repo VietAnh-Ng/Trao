@@ -30,6 +30,14 @@ public class SensorService : BackgroundService
                     Console.WriteLine($"DeviceClientSocket connected");
                     try
                     {
+                        var motorSpeedBuffer = new byte[] { 0xF0, 0x02, 0x00, 0x00, 0x00, 0x00, 0xA0, };
+                        motorSpeedBuffer[2] = (byte)(ControlOption.MotorSpeed);
+                        motorSpeedBuffer[3] = (byte)(ControlOption.MotorSpeed >> 8);
+                        motorSpeedBuffer[4] = (byte)(ControlOption.MotorSpeed >> 16);
+                        motorSpeedBuffer[5] = (byte)(ControlOption.MotorSpeed >> 24);
+
+                        await webSocket.SendAsync(motorSpeedBuffer, WebSocketMessageType.Binary, true, CancellationToken.None);
+
                         while (!receiveResult.CloseStatus.HasValue)
                         {
                             if (receiveResult.MessageType == WebSocketMessageType.Binary
@@ -69,8 +77,10 @@ public class SensorService : BackgroundService
                 }
             }
 
-
-            await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, receiveResult.CloseStatusDescription, CancellationToken.None);
+            if (webSocket.State == WebSocketState.Open)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, receiveResult.CloseStatusDescription, CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
@@ -95,7 +105,7 @@ public class SensorService : BackgroundService
 
     public async Task SetMotorSpeed(int motorSpeed)
     {
-        var buffer = new byte[] { 0xF0, 0x04, 0x00, 0x00, 0x00, 0x00, 0xA0, };
+        var buffer = new byte[] { 0xF0, 0x02, 0x00, 0x00, 0x00, 0x00, 0xA0, };
         buffer[2] = (byte)(motorSpeed);
         buffer[3] = (byte)(motorSpeed >> 8);
         buffer[4] = (byte)(motorSpeed >> 16);
