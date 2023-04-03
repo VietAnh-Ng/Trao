@@ -24,10 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\images\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Update="Pages\ThiNghiem1.razor">
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
