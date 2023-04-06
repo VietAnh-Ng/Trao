@@ -2,29 +2,18 @@
 <PageTitle>Thí nghiệm CẢM ỨNG ĐIỆN TỪ</PageTitle>
 
 <div class="index-container">
-        <div class="d-flex p-3 flex-column">
+    <div class="h-100 w-100 d-flex p-3 flex-column">
+        <div class="d-flex flex-row justify-content-around pb-5">
             <h1>Hiện tượng cảm ứng điện từ</h1>
-            <div class="m-3">
-                Hiện tượng cảm ứng điện từ là hiện tượng tạo ra dòng điện trong một vòng dây dẫn khi có sự thay đổi trong từ trường xung quanh vòng dây.
-                <br />
-                Theo định luật Faraday, sự thay đổi trong từ trường xung quanh vòng dây dẫn sẽ tạo ra một lực điện động (EMF) và do đó tạo ra một dòng điện trong vòng dây. Điều này được mô tả bởi phương trình cảm ứng điện từ của Faraday: EMF = -dPhi/dt, trong đó EMF là lực điện động được tạo ra, Phi là từ liên quan đến vòng dây và t là thời gian.
-                <br />
-                <br />
-                Hiện tượng cảm ứng điện từ được ứng dụng trong rất nhiều thiết bị điện tử, chẳng hạn như các máy phát điện, máy biến áp, máy điện động cơ, cảm biến, v.v.
-            </div>
-            <div class="mb-3">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/thi-nghiem/1">Thí nghiệm 1</MudButton>
-            </div>
-            <div class="mb-3">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/thi-nghiem/2">Thí nghiệm 2</MudButton>
-            </div>
-            <div class="mb-3">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/thi-nghiem/3">Thí nghiệm 3</MudButton>
-            </div>
-            <div class="flex-grow-1 d-flex align-items-end justify-content-end">
-                © Copyright ThS Nguyễn Thị Thanh Loan 2023
-            </div>
         </div>
+
+        <div class="flex-grow-1"></div>
+        <div class="d-flex flex-row justify-content-around pb-5">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/thi-nghiem/1"><h5>Thí nghiệm 1</h5></MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/thi-nghiem/2"><h5>Thí nghiệm 2</h5></MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Href="/thi-nghiem/3"><h5>Thí nghiệm 3</h5></MudButton>
+        </div>
+    </div>
 </div>
 
 @code {
