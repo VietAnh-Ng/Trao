@@ -1,0 +1,18 @@
+﻿.exp3-btn {
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    margin: 3px;
+    padding: 5px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 24px;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+    .exp3-btn:active {
+        margin: 6px 0px 0px 6px;
+        background-color: orangered;
+    }

@@ -1,6 +1,8 @@
-﻿using System;
+﻿using MudBlazor;
+using System;
 using System.Net.WebSockets;
 using TraoApp.Shared;
+using static MudBlazor.CategoryTypes;
 
 namespace TraoApp.Server.Services;
 
@@ -111,6 +113,35 @@ public class SensorService : BackgroundService
         buffer[4] = (byte)(motorSpeed >> 16);
         buffer[5] = (byte)(motorSpeed >> 24);
         ControlOption.MotorSpeed = motorSpeed;
+        Queue<WebSocket> clients = new(DeviceClientSockets);
+        while (clients.TryDequeue(out WebSocket? webSocket) && webSocket is not null)
+        {
+            if (webSocket.State == WebSocketState.Open)
+            {
+                await webSocket.SendAsync(buffer, WebSocketMessageType.Binary, true, CancellationToken.None);
+            }
+        }
+        ControlOption.MotorSpeed = motorSpeed;
+    }
+
+    public async Task SetRunContinuously(bool enable)
+    {
+        var buffer = new byte[] { 0xF0, 0x03, 0x00, 0xA0, };
+        buffer[2] = (byte)(enable ? 1 : 0);
+        Queue<WebSocket> clients = new(DeviceClientSockets);
+        while (clients.TryDequeue(out WebSocket? webSocket) && webSocket is not null)
+        {
+            if (webSocket.State == WebSocketState.Open)
+            {
+                await webSocket.SendAsync(buffer, WebSocketMessageType.Binary, true, CancellationToken.None);
+            }
+        }
+    }
+
+    public async Task WriteInductorPin(bool val)
+    {
+        var buffer = new byte[] { 0xF0, 0x04, 0x00, 0xA0, };
+        buffer[2] = (byte)(val ? 1 : 0);
         Queue<WebSocket> clients = new(DeviceClientSockets);
         while (clients.TryDequeue(out WebSocket? webSocket) && webSocket is not null)
         {

@@ -35,4 +35,10 @@ public class SensorHubClient
 
     public async Task<bool> SetRotationDirectionPR() => await Connection.InvokeAsync<bool>("SetRotationDirection", true);
     public async Task<bool> SetRotationDirectionFW() => await Connection.InvokeAsync<bool>("SetRotationDirection", false);
+
+    public Task EnableRunContinuously() => Connection.InvokeAsync("SetRunContinuously", true);
+    public Task DisableRunContinuously() => Connection.InvokeAsync("SetRunContinuously", false);
+
+    public Task SetInductorPin() => Connection.InvokeAsync("WriteInductorPin", true);
+    public Task ResetInductorPin() => Connection.InvokeAsync("WriteInductorPin", false);
 }

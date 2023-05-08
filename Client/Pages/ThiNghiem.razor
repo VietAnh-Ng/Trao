@@ -30,8 +30,20 @@
                             <b>Điều khiển</b>
                             <div class="d-flex flex-row justify-content-between align-items-center">
                                 <MudButtonGroup OverrideStyles="false">
-                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionFW">Run Left</MudButton>
-                                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionPR">Run Right</MudButton>
+                                    @if (Experiment == 1)
+                                    {
+                                        <MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionFW">Run Left</MudButton>
+                                        <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="SensorHub.SetRotationDirectionPR">Run Right</MudButton>
+                                    }
+                                    @if (Experiment == 2)
+                                    {
+                                        <MudButton Color="Color.Tertiary" Variant="Variant.Filled" OnClick="SensorHub.EnableRunContinuously">Start</MudButton>
+                                        <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="SensorHub.DisableRunContinuously">Stop</MudButton>
+                                    }
+                                    @if (Experiment == 3)
+                                    {
+                                        <button class="exp3-btn" @onmousedown="OnToggleMouseDown" @onmouseup="OnToggleMouseUp">Toggle</button>
+                                    }
                                 </MudButtonGroup>
                                 <MudSwitch @bind-Checked="SignalsToPlot" Color="Color.Primary" Label="Signals to plot" />
                             </div>
@@ -306,13 +318,26 @@
 
     private async Task OnMotorSpeedChanged(int speed)
     {
-        await SensorHub.SetMotorSpeed(MotorSpeed);
+        if (MotorSpeed == speed) return;
+
+        MotorSpeed = await SensorHub.SetMotorSpeed(speed);
+        StateHasChanged();
     }
 
     private void SetExperiment(int i)
     {
         Experiment = i;
         StateHasChanged();
+    }
+
+    private async Task OnToggleMouseDown(MouseEventArgs e)
+    {
+        await SensorHub.SetInductorPin();
+    }
+
+    private async Task OnToggleMouseUp(MouseEventArgs e)
+    {
+        await SensorHub.ResetInductorPin();
     }
 
     public async ValueTask DisposeAsync()
