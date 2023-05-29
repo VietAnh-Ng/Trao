@@ -1,3 +1,5 @@
+
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>
@@ -7,6 +9,14 @@
 #include <SoftwareSerial.h>
 
 #define USE_SERIAL Serial
+
+#define LED_BUILTIN 13
+
+#define WIFI_SSID "F11A11"
+#define WIFI_PASS "88888888"
+
+#define Server_DNS "hientuongcamungdientu.wiki"
+#define Server_PORT 80
 
 union {
   struct {
@@ -137,7 +147,7 @@ void setup() {
 
   //USE_SERIAL.setDebugOutput(true);
 
-  WiFiMulti.addAP("ANHNV-Private", "88888888");
+  WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
 
   //WiFi.disconnect();
   bool ledMode = true;
@@ -155,7 +165,7 @@ void setup() {
   IPAddress myIP = WiFi.localIP();
   USE_SERIAL.println(myIP);
 
-  webSocket.begin("192.168.137.1", 5144, "/ws/sensor");
+  webSocket.begin(Server_DNS , Server_PORT, "/ws/sensor");
   webSocket.onEvent(webSocketEvent);
   //webSocket.setAuthorization("user", "Password");
   webSocket.setReconnectInterval(5000);
